@@ -1,5 +1,3 @@
-[English](/README.md) | [فارسی](/README.fa_IR.md) | [العربية](/README.ar_EG.md) | [中文](/README.zh_CN.md) | [Español](/README.es_ES.md) | [Русский](/README.ru_RU.md) | [Türkçe](/README.tr_TR.md)
-
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="./media/3x-ui-dark.png">
@@ -75,7 +73,7 @@ bash <(curl -Ls https://raw.githubusercontent.com/iranproxy/3x-ui/master/install
 
 During installation a random username, password, and access path are generated. After installation, run `x-ui` to open the management menu, where you can start/stop the service, view or reset your login credentials, manage SSL certificates, and more.
 
-For full documentation, please visit the [project Wiki](https://github.com/iranproxy/3x-ui/wiki).
+For full documentation, please visit the [project Wiki](https://github.com/MHSanaei/3x-ui/wiki).
 
 ## Supported Platforms
 
@@ -107,20 +105,6 @@ systemctl restart x-ui
 
 The source SQLite file is left untouched; remove it manually once you have verified the new backend.
 
-### Docker
-
-The default `docker compose up -d` keeps using SQLite. To run with the bundled PostgreSQL service, uncomment the two `XUI_DB_*` env lines in `docker-compose.yml` and start with the profile:
-
-```bash
-docker compose --profile postgres up -d
-```
-
-The image bundles Fail2ban (enabled by default) to enforce per-client **IP limits**. Fail2ban bans offenders with `iptables`, which requires the `NET_ADMIN` capability. `docker-compose.yml` already grants it via `cap_add`; if you start the container with `docker run` instead, add the capabilities yourself, otherwise bans are logged but never applied:
-
-```bash
-docker run -d --cap-add=NET_ADMIN --cap-add=NET_RAW ... ghcr.io/iranproxy/3x-ui
-```
-
 ## Environment Variables
 
 | Variable | Description | Default |
@@ -134,32 +118,3 @@ docker run -d --cap-add=NET_ADMIN --cap-add=NET_RAW ... ghcr.io/iranproxy/3x-ui
 | `XUI_ENABLE_FAIL2BAN` | Enable Fail2ban-based IP-limit enforcement | `true` |
 | `XUI_LOG_LEVEL` | Log verbosity (`debug`, `info`, `warning`, `error`) | `info` |
 | `XUI_DEBUG` | Enable debug mode | `false` |
-
-## Supported Languages
-
-The panel UI is available in 13 languages:
-
-English · فارسی · العربية · 中文（简体） · 中文（繁體） · Español · Русский · Українська · Türkçe · Tiếng Việt · 日本語 · Bahasa Indonesia · Português (Brasil)
-
-## Contributing
-
-Contributions are welcome. Please read the [Contributing Guide](/CONTRIBUTING.md) before opening an issue or pull request.
-
-## A Special Thanks to
-
-- [alireza0](https://github.com/alireza0/)
-
-## Acknowledgment
-
-- [Iran v2ray rules](https://github.com/chocolate4u/Iran-v2ray-rules) (License: **GPL-3.0**): _Enhanced v2ray/xray and v2ray/xray-clients routing rules with built-in Iranian domains and a focus on security and adblocking._
-- [Russia v2ray rules](https://github.com/runetfreedom/russia-v2ray-rules-dat) (License: **GPL-3.0**): _This repository contains automatically updated V2Ray routing rules based on data on blocked domains and addresses in Russia._
-
-## Community Tools
-
-Tools and integrations built by the community around 3x-ui.
-
-- [terraform-provider-3x-ui](https://github.com/batonogov/terraform-provider-threexui) (License: **MIT**): _Manage inbounds, clients, panel settings, and Xray configuration as code with Terraform / OpenTofu._
-
-## Stargazers over Time
-
-[![Stargazers over time](https://starchart.cc/iranproxy/3x-ui.svg?variant=adaptive)](https://starchart.cc/iranproxy/3x-ui)

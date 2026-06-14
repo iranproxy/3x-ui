@@ -44,19 +44,19 @@ func (j *XrayTrafficJob) Run() {
 	if err != nil {
 		logger.Warning("add outbound traffic failed:", err)
 	}
-	if clientsDisabled {
-		restartOnDisable, settingErr := j.settingService.GetRestartXrayOnClientDisable()
-		if settingErr != nil {
-			logger.Warning("get RestartXrayOnClientDisable failed:", settingErr)
-		}
-		if restartOnDisable {
-			if err := j.xrayService.RestartXray(true); err != nil {
-				logger.Warning("restart xray after disabling clients failed:", err)
-				j.xrayService.SetToNeedRestart()
-			}
-		}
-		websocket.BroadcastInvalidate(websocket.MessageTypeInbounds)
-	}
+	// if clientsDisabled {
+	// 	restartOnDisable, settingErr := j.settingService.GetRestartXrayOnClientDisable()
+	// 	if settingErr != nil {
+	// 		logger.Warning("get RestartXrayOnClientDisable failed:", settingErr)
+	// 	}
+	// 	if restartOnDisable {
+	// 		if err := j.xrayService.RestartXray(true); err != nil {
+	// 			logger.Warning("restart xray after disabling clients failed:", err)
+	// 			j.xrayService.SetToNeedRestart()
+	// 		}
+	// 	}
+	// 	websocket.BroadcastInvalidate(websocket.MessageTypeInbounds)
+	// }
 	if ExternalTrafficInformEnable, err := j.settingService.GetExternalTrafficInformEnable(); ExternalTrafficInformEnable {
 		j.informTrafficToExternalAPI(traffics, clientTraffics)
 	} else if err != nil {

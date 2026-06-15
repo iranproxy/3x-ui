@@ -72,7 +72,7 @@ func TestRemoteHonorsTLSVerifyMode(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			r := NewRemote(nodeForServer(t, srv, c.mode, c.pin))
+			r := NewRemote(nodeForServer(t, srv, c.mode, c.pin), nil)
 			_, err := r.ListInboundOptions(context.Background())
 			if c.wantErr && err == nil {
 				t.Fatalf("mode %q: expected error, got nil", c.mode)
@@ -87,7 +87,7 @@ func TestRemoteHonorsTLSVerifyMode(t *testing.T) {
 // The lazily-built client is cached for the Remote's lifetime so repeated
 // operations reuse one pooled transport rather than rebuilding TLS each call.
 func TestRemoteClientCached(t *testing.T) {
-	r := NewRemote(&model.Node{Scheme: "https", TlsVerifyMode: "skip"})
+	r := NewRemote(&model.Node{Scheme: "https", TlsVerifyMode: "skip"}, nil)
 	c1, err1 := r.httpClient()
 	c2, err2 := r.httpClient()
 	if err1 != nil || err2 != nil {
@@ -105,7 +105,7 @@ func TestHTTPClientForNodeVerifyShared(t *testing.T) {
 		{Scheme: "https", TlsVerifyMode: ""},
 		{Scheme: "http", TlsVerifyMode: "skip"},
 	} {
-		c, err := HTTPClientForNode(n)
+		c, err := HTTPClientForNode(n, "")
 		if err != nil {
 			t.Fatalf("HTTPClientForNode(%+v): %v", n, err)
 		}
@@ -116,8 +116,67 @@ func TestHTTPClientForNodeVerifyShared(t *testing.T) {
 }
 
 func TestHTTPClientForNodePinInvalid(t *testing.T) {
-	if _, err := HTTPClientForNode(&model.Node{Scheme: "https", TlsVerifyMode: "pin", PinnedCertSha256: "not-a-pin"}); err == nil {
-		t.Fatal("expected error for invalid pin")
+	// pin mode must fail closed, and with a specific error per cause — not merely
+	// "some error" (which a bug anywhere in the build path would also satisfy).
+	cases := []struct {
+		name    string
+		pin     string
+		wantErr string
+	}{
+		{"garbage pin", "not-a-pin", "must be a SHA-256 hash"},
+		{"empty pin", "", "certificate pin is empty"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			_, err := HTTPClientForNode(&model.Node{Scheme: "https", TlsVerifyMode: "pin", PinnedCertSha256: c.pin}, "")
+			if err == nil {
+				t.Fatalf("expected error for pin %q", c.pin)
+			}
+			if !strings.Contains(err.Error(), c.wantErr) {
+				t.Fatalf("error = %q, want it to contain %q", err.Error(), c.wantErr)
+			}
+		})
+	}
+}
+
+// TestHTTPClientForNode_ProxyPinPreservesPinEnforcement covers the proxy+pin branch
+// (tls_client.go:43-52): when a node uses a proxy AND pin mode, the proxy client's
+// transport must carry the pinning tls.Config (the `transport.TLSClientConfig = tlsCfg`
+// line). Dropping it would silently disable certificate pinning whenever a proxy is set.
+func TestHTTPClientForNode_ProxyPinPreservesPinEnforcement(t *testing.T) {
+	pin := base64.StdEncoding.EncodeToString(make([]byte, sha256.Size))
+	n := &model.Node{Scheme: "https", TlsVerifyMode: "pin", PinnedCertSha256: pin}
+
+	c, err := HTTPClientForNode(n, "socks5://127.0.0.1:1080")
+	if err != nil {
+		t.Fatalf("HTTPClientForNode: %v", err)
+	}
+	if c == defaultNodeHTTPClient {
+		t.Fatal("proxy client must not be the shared default client")
+	}
+	tr, ok := c.Transport.(*http.Transport)
+	if !ok {
+		t.Fatalf("transport is %T, want *http.Transport", c.Transport)
+	}
+	if tr.TLSClientConfig == nil || tr.TLSClientConfig.VerifyConnection == nil {
+		t.Fatal("pin mode over a proxy must install a pinning tls.Config (VerifyConnection); pin enforcement was dropped")
+	}
+}
+
+// TestHTTPClientForNode_ProxyVerifyNoPin covers the proxy+verify branch
+// (tls_client.go:40-42): verify mode over a proxy returns the proxy client as-is,
+// using system-CA verification and NOT a pin VerifyConnection.
+func TestHTTPClientForNode_ProxyVerifyNoPin(t *testing.T) {
+	n := &model.Node{Scheme: "https", TlsVerifyMode: "verify"}
+	c, err := HTTPClientForNode(n, "socks5://127.0.0.1:1080")
+	if err != nil {
+		t.Fatalf("HTTPClientForNode: %v", err)
+	}
+	if c == defaultNodeHTTPClient {
+		t.Fatal("proxy client must not be the shared default client")
+	}
+	if tr, ok := c.Transport.(*http.Transport); ok && tr.TLSClientConfig != nil && tr.TLSClientConfig.VerifyConnection != nil {
+		t.Fatal("verify mode must not install a pin VerifyConnection")
 	}
 }
 
